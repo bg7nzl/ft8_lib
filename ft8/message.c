@@ -127,6 +127,12 @@ ftx_message_rc_t ftx_message_encode(ftx_message_t* msg, ftx_callsign_hash_interf
     parse_position = copy_token(call_to, 12, parse_position);
     parse_position = copy_token(call_de, 12, parse_position);
     parse_position = copy_token(extra, 20, parse_position);
+    if ((equals(extra, "R") || equals(extra, "r")) && parse_position[0] != '\0')
+    {
+        extra[0] = 'R';
+        extra[1] = ' ';
+        copy_token(extra + 2, 18, parse_position);
+    }
 
     if (call_to[11] != '\0')
     {
@@ -1013,7 +1019,12 @@ static uint16_t packgrid(const char* grid4)
     if (equals(grid4, "73"))
         return MAXGRID4 + 4;
 
-    // TODO: Check for "R " prefix before a 4 letter grid
+    uint16_t ir = 0;
+    if (starts_with(grid4, "R "))
+    {
+        grid4 += 2;
+        ir = 0x8000;
+    }
 
     // Check for standard 4 letter grid
     if (in_range(grid4[0], 'A', 'R') && in_range(grid4[1], 'A', 'R') && is_digit(grid4[2]) && is_digit(grid4[3]))
@@ -1022,7 +1033,7 @@ static uint16_t packgrid(const char* grid4)
         igrid4 = igrid4 * 18 + (grid4[1] - 'A');
         igrid4 = igrid4 * 10 + (grid4[2] - '0');
         igrid4 = igrid4 * 10 + (grid4[3] - '0');
-        return igrid4;
+        return igrid4 | ir;
     }
 
     // Parse report: +dd / -dd / R+dd / R-dd
@@ -1053,7 +1064,8 @@ static int unpackgrid(uint16_t igrid4, uint8_t ir, char* extra)
         if (ir > 0)
         {
             // In case of ir=1 add an "R " before grid
-            dst = stpcpy(dst, "R ");
+            *dst++ = 'R';
+            *dst++ = ' ';
         }
 
         uint16_t n = igrid4;
